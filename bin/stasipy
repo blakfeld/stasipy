@@ -1,0 +1,21 @@
+#!/usr/bin/env python
+"""
+stasipy:
+    Main entry point for calling stasipy
+
+Author: Corwin Brown
+Date: 5/1/2015
+"""
+
+import sys
+try:
+    from stasipy.cli.main import main
+except ImportError:
+    import os
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from stasipy.cli.main import main
+
+
+if __name__ == '__main__':
+    sys.exit(main())
+
