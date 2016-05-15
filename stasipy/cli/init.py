@@ -37,11 +37,6 @@ class StasipyInit(StasipyCLI):
                                  type=str,
                                  metavar='SITE-NAME',
                                  help='The name of the site to generate.')
-        self.parser.add_argument('-y',
-                                 dest='pre_approve',
-                                 action='store_true',
-                                 default=False,
-                                 help='Answer yes to all confirm dialogs.')
 
         super(self.__class__, self).parse()
 
@@ -53,6 +48,7 @@ class StasipyInit(StasipyCLI):
             base_site_path=self.parsed_args.site_path,
             site_name=self.parsed_args.site_name,
             verbose_mode=self.parsed_args.verbose,
+            skip_confirm=self.parsed_args.skip_confirm,
         )
         stasipy.init()
 

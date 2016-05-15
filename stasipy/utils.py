@@ -9,6 +9,7 @@ from __future__ import absolute_import
 
 import os
 
+import jinja2 as j2
 from markdown2 import markdown
 
 from stasipy.errors import StasipyException
@@ -124,6 +125,21 @@ def confirm_dialog(msg, default=None):
         else:
             print('Please enter y (yes) or n (no).\n')
 
+
+def make_singular(s):
+    """
+    Take a string, and chop the S off the end of it. This is not smart enough
+        to determine if a word should end in "s" or not, so... yeah.
+
+    Args:
+        s (str):        The string to truncate an S off of.
+    """
+    if s.endswith('s'):
+        return s[:-1]
+    else:
+        return s
+
+
 def parse_markdown(document):
     """
     Parse a markdown document, and return a tuple of (metadata, content)
@@ -143,3 +159,9 @@ def parse_markdown(document):
     metadata = content.metadata
 
     return metadata, content
+
+
+def render_template_from_file(templates_path, template_name, **kwargs):
+    env = j2.Environment(loader=j2.FileSystemLoader(templates_path))
+    template = env.get_template(template_name)
+    return template.render(kwargs)

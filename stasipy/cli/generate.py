@@ -40,5 +40,6 @@ class StasipyGenerate(StasipyCLI):
         stasipy = Stasipy(
             base_site_path=self.parsed_args.site_path,
             verbose_mode=self.parsed_args.verbose,
+            skip_confirm=self.parsed_args.skip_confirm,
         )
         stasipy.generate()

@@ -47,6 +47,11 @@ class StasipyCLI(object):
                             action='store_true',
                             default=False,
                             help='Toggle verbose mode.')
+        parser.add_argument('-y',
+                            dest='skip_confirm',
+                            action='store_true',
+                            default=False,
+                            help='Answer yes to all confirm dialogs.')
         return parser
 
     def parse(self):
