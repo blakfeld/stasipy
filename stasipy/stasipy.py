@@ -9,8 +9,13 @@ from __future__ import absolute_import
 
 import os
 import yaml
+import shutil
+import pkg_resources
+
+import markdown2 as markdown
 
 import stasipy.utils as utils
+from stasipy.errors import StasipyException
 from stasipy.defaults import StasipyDefaults
 
 
@@ -18,6 +23,18 @@ class Stasipy(object):
     """
     Main Stasipy Class.
     """
+
+    template_site_name = 'template_site'
+
+    # This is the document types were supporting. So these are the
+    #   templates/documents we'll search "src" for.
+    # TODO: This should be dynamically figured out based upon
+    #   the directories in "src", or at the very least configurable
+    #   within a site config.
+    supported_document_types = [
+        'posts',
+        'pages',
+    ]
 
     def __init__(self, base_site_path, site_name=None, verbose_mode=None):
         """
@@ -47,41 +64,22 @@ class Stasipy(object):
         """
         self._verbose('Initializing site: "{0}"'.format(self.site_name))
 
-        self._verbose('Creating base site path at: "{0}"'.format(self.base_site_path))
-        utils.ensure_directory_exists(self.base_site_path)
+        if utils.file_exists(self.base_site_path):
+            overwrite = utils.confirm_dialog(
+                msg='Something exists at "{0}"! Overwrite?'.format(self.base_site_path),
+                default='n'
+            )
+            if overwrite:
+                shutil.rmtree(self.base_site_path)
+            else:
+                return
 
-        self._verbose('Generating base site.')
-        self._create_directory_tree(self.site_structure, self.base_site_path)
+        self._verbose('Copying template site to: {0}'.format(self.base_site_path))
+        template_site_path = pkg_resources.resource_filename(__name__, self.template_site_name)
+        shutil.copytree(template_site_path, self.base_site_path)
 
         self._verbose('Generating initial "siteconfig.yml" file.')
         self._generate_base_site_config(site_name=self.site_name)
-
-    def _create_directory_tree(self, structure, path):
-        """
-        Recursively traverse my site_structure data structure and
-            create that file tree.
-
-        Args:
-            structure (dict|list|str):      The file structure to traverse.
-            path (str):                     The path on disk to create the
-                                                structure.
-        """
-        if not structure:
-            return
-
-        for node in structure:
-            if isinstance(node, dict):
-                for sub_node, dirs in node.items():
-                    node_path = os.path.join(path, sub_node)
-                    self._verbose('Creating directory at: "{0}"'.format(node_path))
-                    utils.ensure_directory_exists(node_path)
-                    self._create_directory_tree(dirs, node_path)
-            elif isinstance(node, list):
-                self._create_directory_tree(node, path)
-            elif isinstance(node, str):
-                node_path = os.path.join(path, node)
-                self._verbose('Touching file at: "{0}"'.format(node_path))
-                utils.touch(node_path)
 
     def _generate_base_site_config(self, site_name, **kwargs):
         """
@@ -108,7 +106,67 @@ class Stasipy(object):
         """
         Generate a new site from source.
         """
-        pass
+        source_path = os.path.join(self.base_site_path, 'src')
+        if not utils.file_exists(source_path):
+            raise StasipyException('Source path does not exists at: "{0}"'.format(source_path))
+
+        all_docs = self._discover_documents(source_path, self.supported_document_types)
+        self._verbose('Discovered documents:\n{0}'.format(yaml.dump(all_docs, default_flow_style=False)))
+
+        output_path = os.path.join(self.base_site_path, 'out')
+        if utils.file_exists(output_path):
+            backup_path = os.path.join(self.base_site_path, 'out.backup')
+            if utils.file_exists(backup_path):
+                delete_backup = utils.confirm_dialog(
+                    'Backup "out" directory already exists at "{0}". Overwrite?'.format(backup_path),
+                    default='n'
+                )
+                if delete_backup:
+                    shutil.rmtree(backup_path)
+                else:
+                    return
+            shutil.copytree(output_path, backup_path)
+        utils.ensure_directory_exists(output_path)
+
+        for doc_type, docs in all_docs.items():
+            doc_type_path = os.path.join(output_path, doc_type)
+            utils.ensure_directory_exists(doc_type_path)
+            for doc in docs:
+                metadata, content = utils.parse_markdown(doc)
+                print 'metadata: {0}'.format(metadata)
+                print 'content: {0}'.format(content)
+
+    def _discover_documents(self, source_path, doc_types):
+        """
+        Discover any documents of a specified type.
+
+        Args:
+            source_path (str):      The path to search.
+            doc_types (str):        The document types to search for.
+
+        Returns:
+            dict
+        """
+        docs = {}
+        for doc_type in doc_types:
+            doc_path = os.path.join(source_path, doc_type)
+            docs[doc_type] = self._discover_markdown_files(doc_path)
+
+        return docs
+
+    def _discover_markdown_files(self, path_to_search):
+        """
+        Search a directory for markdown files.
+
+        Args:
+            path_to_search (str):       The root directory to search in.
+        """
+        markdown_files = []
+        for fpath in utils.list_files(path_to_search):
+            if fpath.endswith('.md'):
+                markdown_files.append(fpath)
+
+        return markdown_files
 
     def serve(self):
         """
@@ -128,4 +186,4 @@ class Stasipy(object):
 
 if __name__ == '__main__':
     new_site = Stasipy(os.path.expanduser('~/Desktop/test_site'), verbose_mode=True)
-    new_site.init()
+    new_site.generate()

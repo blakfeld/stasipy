@@ -17,7 +17,11 @@ class StasipyDefaults:
     default_site_structure = [
         {
             'src': [
-                {'templates': []},
+                {
+                    'templates': [
+                        {'layouts': []},
+                    ],
+                },
                 {'static': []},
                 {'pages': []},
                 {'posts': []},

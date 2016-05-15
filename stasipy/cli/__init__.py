@@ -6,13 +6,15 @@ Author: Corwin Brown
 Date: 05/02/2016
 """
 
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 
 import argparse
 
 
 class StasipyCLI(object):
     __metaclass__ = ABCMeta
+
+    _description = None
 
     def __init__(self, args):
         """
@@ -22,7 +24,6 @@ class StasipyCLI(object):
             args (list):    Args from the command line. I expect this to
                                 basically be: sys.argv[2:]
         """
-
         self.args = args
 
         self.parser = self._setup_base_parser()
@@ -44,22 +45,25 @@ class StasipyCLI(object):
                             help='The path to the site you wish to reference.')
         parser.add_argument('-v', '--verbose',
                             action='store_true',
+                            default=False,
                             help='Toggle verbose mode.')
         return parser
 
-    @abstractproperty
-    def description():
-        """
-        Get the description of the commandline tool.
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
     def parse(self):
         """
         Parse out command line args.
         """
-        raise NotImplementedError()
+        self.parsed_args = self.parser.parse_args(self.args)
+
+    @property
+    def description(self):
+        """
+        Get the description of the commandline tool.
+        """
+        if self._description is None:
+            raise NotImplementedError('Description not implemented.')
+
+        return self._description
 
     @abstractmethod
     def run(self):

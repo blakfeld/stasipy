@@ -9,6 +9,8 @@ from __future__ import absolute_import
 
 import os
 
+from markdown2 import markdown
+
 from stasipy.errors import StasipyException
 
 
@@ -59,6 +61,27 @@ def ensure_directory_exists(fpath):
         raise StasipyException('"{0}" exists, but is not traversable!'.format(fpath))
 
 
+def list_files(path):
+    """
+    Generator to Emulate something like:
+        find ./ -f
+
+    This will blow apart a directory tree and allow me to easily
+        search for a file. Since this is a generator, it should
+        be mitigate a lot of the ineffiency of walking the whold
+        directory.
+
+    Args:
+        path (str): The path to traverse.
+
+    Returns:
+        str: files in the path.
+    """
+    for root, folders, files in os.walk(path):
+        for filename in folders + files:
+            yield os.path.join(root, filename)
+
+
 def touch(fpath, times=None):
     """
     Python implementation of 'touch'.
@@ -71,3 +94,52 @@ def touch(fpath, times=None):
     """
     with open(fpath, 'a'):
         os.utime(fpath, times)
+
+
+def confirm_dialog(msg, default=None):
+    """
+    Display a "yes/no" confirm dialog to the user.
+
+    Args:
+        msg (str):      The prompt to show the user.
+        default (str):  The default answer.
+    """
+    msg = '{0} [y|n]'.format(msg)
+    if default is not None:
+        if default.lower() not in ['y', 'yes', 'n', 'no']:
+            raise ValueError('"{0}" is not a valid default value for "confirm_dialog".'
+                             .format(default))
+        msg = '{0} (default: {1})'.format(msg, default)
+
+    prompt = '{0}: '.format(msg)
+    while True:
+        confirm = raw_input(prompt).lower()
+        if not confirm and default is not None:
+            confirm = default.lower()
+
+        if confirm == 'y' or confirm == 'yes':
+            return True
+        elif confirm == 'n' or confirm == 'no':
+            return False
+        else:
+            print('Please enter y (yes) or n (no).\n')
+
+def parse_markdown(document):
+    """
+    Parse a markdown document, and return a tuple of (metadata, content)
+
+    Args:
+        document (str):     The path to the document you wish to parse.
+
+    Returns:
+        Tuple:              (metadata, content)
+    """
+    if not file_exists(document):
+        raise ValueError('Unable to read document at location: {0}'.format(document))
+
+    with open(document, 'r') as f:
+        content = markdown(f.read(), extras=['metadata'])
+
+    metadata = content.metadata
+
+    return metadata, content

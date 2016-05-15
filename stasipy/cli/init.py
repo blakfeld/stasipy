@@ -7,6 +7,8 @@ Date: 05/01/2016
 """
 from __future__ import absolute_import
 
+import os
+
 from stasipy.stasipy import Stasipy
 from stasipy.cli import StasipyCLI
 
@@ -35,8 +37,13 @@ class StasipyInit(StasipyCLI):
                                  type=str,
                                  metavar='SITE-NAME',
                                  help='The name of the site to generate.')
+        self.parser.add_argument('-y',
+                                 dest='pre_approve',
+                                 action='store_true',
+                                 default=False,
+                                 help='Answer yes to all confirm dialogs.')
 
-        self.parsed_args = self.parser.parse_args(self.args)
+        super(self.__class__, self).parse()
 
     def run(self):
         """
