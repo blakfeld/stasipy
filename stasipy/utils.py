@@ -5,9 +5,11 @@ utils.py:
 Author: Corwin Brown
 Date: 05/01/2016
 """
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import os
+import sys
+import shutil
 
 import jinja2 as j2
 from markdown2 import markdown
@@ -61,6 +63,19 @@ def ensure_directory_exists(fpath):
     if file_exists(fpath) and not os.access(fpath, os.X_OK):
         raise StasipyException('"{0}" exists, but is not traversable!'.format(fpath))
 
+
+def ensure_directory_absent(fpath):
+    """
+    Ensure that a directory does NOT exist.
+
+    Args:
+        fpath (str):        The path of the directory to ensure absent.
+    """
+    if file_exists(fpath):
+        if os.path.isdir(fpath):
+            shutil.rmtree(fpath)
+        else:
+            os.remove(fpath)
 
 def list_files(path):
     """
@@ -162,6 +177,29 @@ def parse_markdown(document):
 
 
 def render_template_from_file(templates_path, template_name, **kwargs):
+    """
+    Render a JINJA template from a file.
+
+    Args:
+        templates_path (str):   The search path for templates.
+        template_name (str):    The template to render.
+        kwargs (dict):          Any other variables you wish to render into
+                                    the template.
+
+    Returns:
+        str (Rendered Template)
+    """
     env = j2.Environment(loader=j2.FileSystemLoader(templates_path))
     template = env.get_template(template_name)
     return template.render(kwargs)
+
+
+def print_err(*args, **kwargs):
+    """
+    Print to stderr
+
+    Args:
+        *args to pass down to print function.
+        *kwargs to pass down to print function.
+    """
+    print(*args, file=sys.stderr, **kwargs)

@@ -12,9 +12,8 @@ import yaml
 import shutil
 import pkg_resources
 
-import markdown2 as markdown
-
 import stasipy.utils as utils
+from stasipy.document import Document
 from stasipy.errors import StasipyException
 from stasipy.defaults import StasipyDefaults
 
@@ -55,10 +54,32 @@ class Stasipy(object):
         else:
             self.base_site_path = base_site_path
 
+        # Source Paths.
+        self.source_path = os.path.join(self.base_site_path, 'src')
+        self.source_posts_path = os.path.join(self.source_path, 'posts')
+        self.source_pages_path = os.path.join(self.source_path, 'pages')
+
+        # Staging Paths.
+        self.staging_path = os.path.join(self.base_site_path, '.out.staging')
+        self.posts_staging_path = os.path.join(self.staging_path, 'posts')
+        self.pages_staging_path = os.path.join(self.staging_path, 'pages')
+
+        # Output Paths.
+        self.out_path = os.path.join(self.base_site_path, 'out')
+
+        self.templates_path = os.path.join(self.source_path, 'templates')
         self.site_name = site_name or self._site_name_from_path(self.base_site_path)
         self.verbose_mode = True if verbose_mode else False
         self.site_structure = StasipyDefaults.default_site_structure
         self.skip_confirm = skip_confirm
+        self.site_vars = None
+
+    def __del__(self):
+        """
+        Destructor.
+        """
+
+        self._clean()
 
     def _site_name_from_path(self, path):
         """
@@ -116,12 +137,8 @@ class Stasipy(object):
         """
         config_data = StasipyDefaults.default_site_config
         config_data['site_name'] = self.site_name
-        print self.site_name
-        print config_data['site_name']
         config_data.update(kwargs)
-
         config_path = os.path.join(self.base_site_path, 'siteconfig.yml')
-
         with open(config_path, 'w') as f:
             f.write('---\n')
             f.write(yaml.dump(config_data, default_flow_style=False))
@@ -131,49 +148,88 @@ class Stasipy(object):
         Generate a new site from source.
         """
         # Get data from site_config
-        site_vars = self._read_site_config()
+        self.site_vars = self._read_site_config()
 
-        # Get the source path.
-        source_path = os.path.join(self.base_site_path, 'src')
-        if not utils.file_exists(source_path):
-            raise StasipyException('Source path does not exists at: "{0}"'.format(source_path))
+        # Ensure the source path exists.
+        if not utils.file_exists(self.source_path):
+            raise StasipyException('Source path does not exists at: "{0}"'.format(self.source_path))
 
-        # Find all our markdown docs.
-        all_docs = self._discover_documents(source_path, self.supported_document_types)
-        self._verbose('Discovered documents:\n{0}'.format(yaml.dump(all_docs, default_flow_style=False)))
+        # Find our posts and pages.
+        self._verbose('Discovering posts.')
+        posts = self._discover_documents(self.source_posts_path, 'post')
 
-        # Generate the "out" directory.
-        output_path = os.path.join(self.base_site_path, 'out')
-        if utils.file_exists(output_path):
-            backup_path = os.path.join(self.base_site_path, 'out.backup')
-            if utils.file_exists(backup_path):
-                delete_backup = self._confirm_dialog(
-                    'Backup "out" directory already exists at "{0}". Overwrite?'.format(backup_path),
-                    default='n'
-                )
-                if delete_backup:
-                    shutil.rmtree(backup_path)
-                else:
-                    return
-            shutil.copytree(output_path, backup_path)
-        utils.ensure_directory_exists(output_path)
+        self._verbose('Discovering pages.')
+        pages = self._discover_documents(self.source_pages_path, 'page')
+        if posts or pages:
+            self._verbose('Discovered documents!\nPosts:\n\t- {0}\nPages: \n\t- {1}'.format(
+                          '\n\t- '.join([str(p) for p in posts] if posts else ''),
+                          '\n\t- '.join([str(p) for p in pages]) if pages else ''))
+        else:
+            utils.print_err('No documents found!')
+            return 1
 
-        # Read the Markdown.
-        ## TODO This needs some major refactoring, but the logic works.
-        for doc_type, docs in all_docs.items():
-            doc_type_path = os.path.join(output_path, doc_type)
-            utils.ensure_directory_exists(doc_type_path)
-            for doc in docs:
-                metadata, content = utils.parse_markdown(doc)
-                # Take the document title, and rework it a little
-                #   to better describe what it actually is.
-                if 'title' in metadata:
-                    metadata['{0}_title'.format(utils.make_singular(doc_type))] = metadata.pop('title')
-                site_vars.update(metadata)
-                templates_path = os.path.join(source_path, 'templates')
-                print utils.render_template_from_file(templates_path, '{0}.html.j2'.format(utils.make_singular(doc_type)), post_content=content, **site_vars)
-                # print 'metadata: {0}'.format(site_vars)
-                # print 'content: {0}'.format(content)
+        # Render out our posts/pages
+        self._verbose('Rendering posts.')
+        rendered_posts = {p.name: self._render_document(p) for p in posts}
+
+        self._verbose('Rendering pages.')
+        rendered_pages = {p.name: self._render_document(p) for p in pages}
+
+        # Generate the "out" staging directory.
+        try:
+            self._create_staging_out_dir()
+        except ValueError as e:
+            utils.print_err('Error: {0}'.format(e))
+            return 1
+
+        # Write the rendered posts/pages.
+        self._verbose('Writing out posts.')
+        self._write_documents(rendered_posts, self.posts_staging_path)
+
+        self._verbose('Writing out pages.')
+        self._write_documents(rendered_pages, self.pages_staging_path)
+
+        # Finalize the site.
+        self._finalize_site()
+
+    def _finalize_site(self):
+        """
+        Copy staging over to production.
+        """
+        if not os.path.exists(self.staging_path):
+            raise ValueError('Staging path does not exist at: "{0}"'.format(self.staging_path))
+
+        # If our 'out' path exists, remove it, so we can create a new one.
+        if os.path.exists(self.out_path):
+            shutil.rmtree(self.out_path)
+
+        # Copy over our "staging" site.
+        shutil.copytree(self.staging_path, self.out_path)
+
+    def _create_staging_out_dir(self):
+        """
+        Create a staging out directory, so we can generate all of our content
+            with minimal interupption of the site.
+
+        Args:
+            output_staging_path (str):      The path to create the staging dir.
+
+        Raises:
+            ValueError when staging directory already exists, and 'n' is
+                selected at the overwrite prompt.
+        """
+        if utils.file_exists(self.staging_path):
+            delete_old_staging = self._confirm_dialog(
+                'Staging directory already exists at "{0}"! Overwrite?'.format(self.staging_path),
+                default='n',
+            )
+            if delete_old_staging:
+                shutil.rmtree(self.staging_path)
+            else:
+                raise ValueError('Staging directory "{0}" already exists!')
+        utils.ensure_directory_exists(self.staging_path)
+        utils.ensure_directory_exists(self.posts_staging_path)
+        utils.ensure_directory_exists(self.pages_staging_path)
 
     def _read_site_config(self):
         """
@@ -191,37 +247,53 @@ class Stasipy(object):
 
         return site_config_data
 
-    def _discover_documents(self, source_path, doc_types):
+    def _render_document(self, document):
         """
-        Discover any documents of a specified type.
+        Render out a document, keeping any data I might want later
+            intact.
 
         Args:
-            source_path (str):      The path to search.
-            doc_types (str):        The document types to search for.
+            document (document obj):    Document object to render.
 
         Returns:
             dict
         """
-        docs = {}
-        for doc_type in doc_types:
-            doc_path = os.path.join(source_path, doc_type)
-            docs[doc_type] = self._discover_markdown_files(doc_path)
+        rendered_document = {
+            'title': document.title,
+            'metadata': document.metadata,
+            'content': document.render(self.templates_path, **self.site_vars),
+        }
 
-        return docs
+        return rendered_document
 
-    def _discover_markdown_files(self, path_to_search):
+    def _write_documents(self, rendered_documents, output_path):
         """
-        Search a directory for markdown files.
+        Write out a rendered document.
+        """
+        for name, attrs in rendered_documents.items():
+            document_output_path = os.path.join(output_path, '{0}.html'.format(name))
+            with open(document_output_path, 'w') as f:
+                f.write(attrs['content'])
+
+    def _discover_documents(self, path_to_search, document_type):
+        """
+        Search a directory for documents.
 
         Args:
             path_to_search (str):       The root directory to search in.
+            document_type (str):        The type of document I'm searching for.
         """
-        markdown_files = []
+        # Find Markdown files and create a Document object.
+        documents = []
         for fpath in utils.list_files(path_to_search):
-            if fpath.endswith('.md'):
-                markdown_files.append(fpath)
+            fname, fext = os.path.splitext(fpath)
+            if not fext == '.md':
+                continue
+            doc = Document(path=os.path.join(path_to_search, fpath),
+                           type=document_type)
+            documents.append(doc)
 
-        return markdown_files
+        return documents
 
     def serve(self):
         """
@@ -256,6 +328,8 @@ class Stasipy(object):
         else:
             return utils.confirm_dialog(msg, default=default)
 
-if __name__ == '__main__':
-    new_site = Stasipy(os.path.expanduser('~/Desktop/test_site'), verbose_mode=True)
-    new_site.generate()
+    def _clean(self):
+        """
+        Clean up any files that may have been created.
+        """
+        utils.ensure_directory_absent(self.staging_path)
