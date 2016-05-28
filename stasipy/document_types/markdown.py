@@ -16,21 +16,22 @@ class MarkdownDocument(Document):
     Implementation of the Document class for Markdown Documents.
     """
 
-    def __init__(self, path, type, name=None):
+    def __init__(self, path, type, name=None, time_format=None):
         """
         Constructor
 
         Args:
             path (str):     Path on disk to the document.
             type (str):     The type of document this is. For example 'Posts',
-                                or 'Pages'. This should probably be an ENUM.
+                                or 'Pages'.
             name (str):     The name of the document. Defaults to basename
+            time_format (str):  The time format to use.
 
         """
-        super(self.__class__, self).__init__(path=path, type=type, name=name)
-        self.template_name = '{0}.html.j2'.format(utils.make_singular(self.type))
-        self.metadata, self.raw_content = utils.parse_markdown_from_file(self.path)
-        self.title = self.metadata.pop('title', self.name)
+        super(self.__class__, self).__init__(path=path,
+                                             type=type,
+                                             name=name,
+                                             time_format=None)
 
     def render(self, templates_path, **kwargs):
         """

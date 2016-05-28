@@ -14,9 +14,15 @@ from stasipy.document_types import Document
 class TemplateDocument(Document):
     """
     Implementation of the Document class for Template Documents.
+
+    Given the context of a webpage, I'm abusing the fact that HTML is
+        technically valid markdown. So I'm assuming you've very likely
+        handed me a document that contains HTML with jinja templating.
+        This allows me to get all the same metadata I would get from a
+        markdown page without having to write the parser myself.
     """
 
-    def __init__(self, path, type, name=None):
+    def __init__(self, path, type, name=None, time_format=None):
         """
         Constructor
 
@@ -25,11 +31,13 @@ class TemplateDocument(Document):
             type (str):     The type of document this is. For example 'Posts',
                                 or 'Pages'. This should probably be an ENUM.
             name (str):     The name of the document. Defaults to basename
+            time_format (str):  The time format to use.
 
         """
-        super(self.__class__, self).__init__(path=path, type=type, name=name)
-        self.template_name = '{0}.html.j2'.format(utils.make_singular(self.type))
-        self.title = self.name
+        super(self.__class__, self).__init__(path=path,
+                                             type=type,
+                                             name=name,
+                                             time_format=time_format)
 
     def render(self, templates_path, **kwargs):
         """
@@ -43,12 +51,11 @@ class TemplateDocument(Document):
         # Construct our variables
         site_vars = kwargs
 
-        # Read the file to get it's raw contents.
-        with open(self.path, 'r') as f:
-            raw_content = utils.render_template_from_string(f.read(), **site_vars)
+        # Blow out the template.
+        _, content = utils.parse_markdown_template(self.path, **site_vars)
 
         # Munch the site_vars a bit to accomadate doc_types.
-        site_vars['{0}_body'.format(self.type)] = raw_content
+        site_vars['{0}_body'.format(self.type)] = content
         site_vars['{0}_title'.format(self.type)] = self.title
 
         # Render the page.

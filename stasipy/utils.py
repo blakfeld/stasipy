@@ -77,6 +77,7 @@ def ensure_directory_absent(fpath):
         else:
             os.remove(fpath)
 
+
 def list_files(path):
     """
     Generator to Emulate something like:
@@ -251,6 +252,18 @@ def render_template_from_string(template_string, **kwargs):
     template = env.from_string(template_string)
     return template.render(kwargs)
 
+
+def str_to_bool(s):
+    """
+    Convert a string to a boolean.
+
+    Args:
+        s (str):    String to convert.
+    """
+    if s.lower() == 'true':
+        return True
+    else:
+        return False
 
 def print_err(*args, **kwargs):
     """

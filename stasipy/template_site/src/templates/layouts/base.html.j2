@@ -26,16 +26,28 @@
                 <a class="navbar-brand" href="/">{{ site_name }}</a>
             </div>
             <div id="navbar" class="navbar-collapse collapse">
+{% if navbar is defined and navbar is sequence %}
+                <ul class="nav navbar-nav">
+    {% for nav_item in navbar %}
+                    <li><a href="{{ nav_item.href }}">{{ nav_item.title }}</a></li>
+    {% endfor %}
+                </ul>
+{% endif %}
+{#
 {% if (nav_items is defined and nav_items is sequence) or (pages is defined and pages is sequence) %}
                 <ul class="nav navbar-nav">
+    {% for meta_page in meta_pages %}
+                  <li><a href="{{ meta_page.href }}">{{ meta_page.title }}</a></li>
+    {% endfor %}
     {% for page in pages %}
-                  <li><a href="{{ page.href }}">{{ page.name }}</a></li>
+                  <li><a href="{{ page.href }}">{{ page.title }}</a></li>
     {% endfor %}
     {% for nav_item in nav_items %}
                     <li><a href="{{ nav_item.href }}">{{ nav_item.name }}</a></li>
     {% endfor %}
                 </ul>
 {% endif %}
+#}
             </div>
         </div>
     </div>

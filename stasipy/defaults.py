@@ -14,8 +14,9 @@ class StasipyDefaults:
         'email': '<put your email here>',
         'nav_items': [
             {
-                'name': 'Test Page 1',
+                'title': 'Test Page 1',
                 'href': '/sample_page/test_page1'
             }
-        ]
+        ],
+        'time_format': '%m/%d/%Y'
     }

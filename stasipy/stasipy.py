@@ -56,17 +56,17 @@ class Stasipy(object):
 
         # Source Paths.
         self.source_path = os.path.join(self.base_site_path, 'src')
-        self.source_posts_path = os.path.join(self.source_path, 'posts')
-        self.source_pages_path = os.path.join(self.source_path, 'pages')
+        self.source_posts_path = os.path.join(self.source_path, 'post')
+        self.source_pages_path = os.path.join(self.source_path, 'page')
+        self.source_meta_path = os.path.join(self.source_path, 'meta')
         self.source_static_path = os.path.join(self.source_path, 'static')
-        self.source_index_path = os.path.join(self.source_path, 'index.html')
 
         # Staging Paths.
         self.staging_path = os.path.join(self.base_site_path, '.out.staging')
-        self.staging_posts_path = os.path.join(self.staging_path, 'posts')
-        self.staging_pages_path = os.path.join(self.staging_path, 'pages')
+        self.staging_posts_path = os.path.join(self.staging_path, 'post')
+        self.staging_pages_path = os.path.join(self.staging_path, 'page')
         self.staging_static_path = os.path.join(self.staging_path, 'static')
-        self.staging_index_path = os.path.join(self.staging_path, 'index.html')
+        self.staging_meta_path = self.staging_path
 
         # Output Paths.
         self.out_path = os.path.join(self.base_site_path, 'out')
@@ -75,7 +75,7 @@ class Stasipy(object):
         self.site_name = site_name or self._site_name_from_path(self.base_site_path)
         self.verbose_mode = True if verbose_mode else False
         self.skip_confirm = skip_confirm
-        self.site_vars = None
+        self.site_vars = self._read_site_config()
 
     def __del__(self):
         """
@@ -157,29 +157,25 @@ class Stasipy(object):
         if not utils.file_exists(self.source_path):
             raise StasipyException('Source path does not exists at: "{0}"'.format(self.source_path))
 
-        # Find our posts and pages.
-        self._verbose('Discovering posts.')
+        # Find our posts, pages, and meta pages.
+        self._verbose('Discovering documents.')
         posts = self._discover_documents(self.source_posts_path, 'post')
-
-        self._verbose('Discovering pages.')
         pages = self._discover_documents(self.source_pages_path, 'page')
-        if posts or pages:
-            self._verbose('Discovered documents!\nPosts:\n\t- {0}\nPages: \n\t- {1}'.format(
+        meta_pages = self._discover_documents(self.source_meta_path, 'meta')
+        if posts or pages or meta_pages:
+            self._verbose('Discovered documents!\nPosts:\n\t- {0}\nPages: \n\t- {1}\nMeta Pages: \n\t- {2}'.format(
                           '\n\t- '.join([str(p) for p in posts] if posts else ''),
-                          '\n\t- '.join([str(p) for p in pages]) if pages else ''))
+                          '\n\t- '.join([str(p) for p in pages] if pages else ''),
+                          '\n\t- '.join([str(p) for p in meta_pages]) if meta_pages else ''))
         else:
             utils.print_err('No documents found!')
             return 1
 
-        # Set pages variable in site_vars.
-        self.site_vars['pages'] = self._build_page_links(pages)
+        # Set pages/posts variable in site_vars.
+        self.site_vars['pages'] = sorted(meta_pages) + sorted(pages)
+        self.site_vars['posts'] = sorted(posts, key=lambda p: p.date, reverse=True)
 
-        # Render out our posts/pages
-        self._verbose('Rendering posts.')
-        rendered_posts = {p.name: self._render_document(p) for p in posts}
-
-        self._verbose('Rendering pages.')
-        rendered_pages = {p.name: self._render_document(p) for p in pages}
+        self.site_vars['navbar'] = self._generate_navbar(pages, meta_pages)
 
         # Generate the "out" staging directory.
         try:
@@ -188,20 +184,19 @@ class Stasipy(object):
             utils.print_err('Error: {0}'.format(e))
             return 1
 
-        # Write the rendered posts/pages.
+        # Write the rendered posts/pages/meta pages.
         self._verbose('Writing out posts.')
-        self._write_documents(rendered_posts, self.staging_posts_path)
+        self._write_documents(self._render_documents(posts), self.staging_posts_path)
 
         self._verbose('Writing out pages.')
-        self._write_documents(rendered_pages, self.staging_pages_path)
+        self._write_documents(self._render_documents(pages), self.staging_pages_path)
+
+        self._verbose('Writing out meta pages.')
+        self._write_documents(self._render_documents(meta_pages), self.staging_meta_path)
 
         # Copy over static files.
         if utils.file_exists(self.source_static_path):
             shutil.copytree(self.source_static_path, self.staging_static_path)
-
-        # Copy over index.html.
-        if utils.file_exists(self.source_index_path):
-            shutil.copy(self.source_index_path, self.staging_index_path)
 
         # Finalize the site.
         self._finalize_site()
@@ -261,52 +256,28 @@ class Stasipy(object):
 
         return site_config_data
 
-    def _render_document(self, document):
+    def _render_documents(self, documents):
         """
-        Render out a document, keeping any data I might want later
-            intact.
+        Render the documents, and return them in a meaningful datastructure.
 
         Args:
-            document (document obj):    Document object to render.
+            documents (list):   list of document objects to render.
 
         Returns:
             dict
         """
-        rendered_document = {
-            'title': document.title.replace(' ', '-'),
-            'metadata': document.metadata,
-            'content': document.render(self.templates_path, **self.site_vars),
-        }
-
-        return rendered_document
-
-    def _build_page_links(self, pages):
-        """
-        Construct a list of page links.
-
-        Args:
-            pages (list document obj):  List of pages to link to.
-
-        Returns:
-            list
-        """
-        page_links = []
-        for page in pages:
-            page_links.append({
-                'name': page.title.replace(' ', '-'),
-                'href': '/pages/{0}.html'.format(page.name)
-            })
-
-        return page_links
+        if not isinstance(documents, list):
+            documents = [documents]
+        return {d.name: d.render(self.templates_path, **self.site_vars) for d in documents}
 
     def _write_documents(self, rendered_documents, output_path):
         """
         Write out a rendered document.
         """
-        for name, attrs in rendered_documents.items():
+        for name, content in rendered_documents.items():
             document_output_path = os.path.join(output_path, '{0}.html'.format(name))
             with open(document_output_path, 'w') as f:
-                f.write(attrs['content'])
+                f.write(content)
 
     def _discover_documents(self, path_to_search, document_type):
         """
@@ -324,11 +295,39 @@ class Stasipy(object):
                 continue
             doc = self.document_type_mapping[fext](
                 path=os.path.join(path_to_search, fpath),
-                type=document_type
+                type=document_type,
+                time_format=self.site_vars.get('time_format')
             )
             documents.append(doc)
 
         return documents
+
+    def _generate_navbar(self, *args):
+        """
+        Accept lists of pages, and assemble them into a list of things
+            for the navbar.
+
+        Args:
+            *args (lists):  Anything I want to consider for the navbar.
+        """
+        navbar = []
+        # These are set explicitly by the user, so we want to preserve
+        #   any order that is set here.
+        config_nav_items = self.site_vars.get('nav_items', [])
+
+        # Pull the titles out of the configured nav items, so I don't
+        #   add any poge twice. Meaning, if the user has manually added
+        #   an About page, I shouldn't try to add the About page again.
+        config_nav_titles = [i['title'] for i in config_nav_items]
+        for doc_list in args:
+            for doc in doc_list:
+                if not doc.navbar or doc.title in config_nav_titles:
+                    continue
+                navbar.append(doc)
+
+        # Concat the two lists together, letting user defined
+        #   items come first.
+        return config_nav_items + navbar
 
     def serve(self):
         """

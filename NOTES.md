@@ -20,3 +20,16 @@
 * Create a directory called `.out.staging`
 * Write all content inside `.out.staging`
 * Move to `out`
+
+## Post Summary
+
+* Need a Jinja extention to generate post summaries
+
+## Images
+
+* Need a Jinja extention to generate image tags.
+
+## Meta Documents
+
+* Documents that get rendered after everything else, and one I make
+    fewer assumptions about.

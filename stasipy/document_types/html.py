@@ -14,26 +14,33 @@ from stasipy.document_types import Document
 class HTMLDocument(Document):
     """
     Implementation of the Document class for HTML Documents.
+
+    Since HTML is valid markdown, I'm going to run this through a markdown
+        parser, so I can continue to get metadata from each document
+        without having to write my own parser.
     """
 
-    def __init__(self, path, type, name=None):
+    def __init__(self, path, type, name=None, time_format=None):
         """
         Constructor
 
         Args:
-            path (str):     Path on disk to the document.
-            type (str):     The type of document this is. For example 'Posts',
-                                or 'Pages'. This should probably be an ENUM.
-            name (str):     The name of the document. Defaults to basename
-
+            path (str):         Path on disk to the document.
+            type (str):         The type of page this document is. For example
+                                    'Posts', or 'Pages'.
+            name (str):         The name of the document. Defaults to basename
+            site_vars (dict):   Variables to render into the templated
+                                    Document.
+            time_format (str):  The time format to use.
         """
-        super(self.__class__, self).__init__(path=path, type=type, name=name)
-        self.template_name = '{0}.html.j2'.format(utils.make_singular(self.type))
-        self.title = self.name
+        super(self.__class__, self).__init__(path=path,
+                                             type=type,
+                                             name=name,
+                                             time_format=time_format)
 
     def render(self, templates_path, **kwargs):
         """
-        Render a jinja template file.
+        Render an HTML file.
 
         Args:
             templates_path (str):       Path to search for templates.
