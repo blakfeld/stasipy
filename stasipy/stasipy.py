@@ -13,7 +13,9 @@ import shutil
 import pkg_resources
 
 import stasipy.utils as utils
-from stasipy.document import Document
+from stasipy.document_types.markdown import MarkdownDocument
+from stasipy.document_types.template import TemplateDocument
+from stasipy.document_types.html import HTMLDocument
 from stasipy.errors import StasipyException
 from stasipy.defaults import StasipyDefaults
 
@@ -25,15 +27,13 @@ class Stasipy(object):
 
     template_site_name = 'template_site'
 
-    # This is the document types were supporting. So these are the
-    #   templates/documents we'll search "src" for.
-    # TODO: This should be dynamically figured out based upon
-    #   the directories in "src", or at the very least configurable
-    #   within a site config.
-    supported_document_types = [
-        'posts',
-        'pages',
-    ]
+    document_type_mapping = {
+        '.md': MarkdownDocument,
+        '.mdown': MarkdownDocument,
+        '.j2': TemplateDocument,
+        'html': HTMLDocument,
+        'htm': HTMLDocument,
+    }
 
     def __init__(self, base_site_path, site_name=None, verbose_mode=None, skip_confirm=False):
         """
@@ -58,11 +58,15 @@ class Stasipy(object):
         self.source_path = os.path.join(self.base_site_path, 'src')
         self.source_posts_path = os.path.join(self.source_path, 'posts')
         self.source_pages_path = os.path.join(self.source_path, 'pages')
+        self.source_static_path = os.path.join(self.source_path, 'static')
+        self.source_index_path = os.path.join(self.source_path, 'index.html')
 
         # Staging Paths.
         self.staging_path = os.path.join(self.base_site_path, '.out.staging')
-        self.posts_staging_path = os.path.join(self.staging_path, 'posts')
-        self.pages_staging_path = os.path.join(self.staging_path, 'pages')
+        self.staging_posts_path = os.path.join(self.staging_path, 'posts')
+        self.staging_pages_path = os.path.join(self.staging_path, 'pages')
+        self.staging_static_path = os.path.join(self.staging_path, 'static')
+        self.staging_index_path = os.path.join(self.staging_path, 'index.html')
 
         # Output Paths.
         self.out_path = os.path.join(self.base_site_path, 'out')
@@ -70,7 +74,6 @@ class Stasipy(object):
         self.templates_path = os.path.join(self.source_path, 'templates')
         self.site_name = site_name or self._site_name_from_path(self.base_site_path)
         self.verbose_mode = True if verbose_mode else False
-        self.site_structure = StasipyDefaults.default_site_structure
         self.skip_confirm = skip_confirm
         self.site_vars = None
 
@@ -168,6 +171,9 @@ class Stasipy(object):
             utils.print_err('No documents found!')
             return 1
 
+        # Set pages variable in site_vars.
+        self.site_vars['pages'] = self._build_page_links(pages)
+
         # Render out our posts/pages
         self._verbose('Rendering posts.')
         rendered_posts = {p.name: self._render_document(p) for p in posts}
@@ -184,10 +190,18 @@ class Stasipy(object):
 
         # Write the rendered posts/pages.
         self._verbose('Writing out posts.')
-        self._write_documents(rendered_posts, self.posts_staging_path)
+        self._write_documents(rendered_posts, self.staging_posts_path)
 
         self._verbose('Writing out pages.')
-        self._write_documents(rendered_pages, self.pages_staging_path)
+        self._write_documents(rendered_pages, self.staging_pages_path)
+
+        # Copy over static files.
+        if utils.file_exists(self.source_static_path):
+            shutil.copytree(self.source_static_path, self.staging_static_path)
+
+        # Copy over index.html.
+        if utils.file_exists(self.source_index_path):
+            shutil.copy(self.source_index_path, self.staging_index_path)
 
         # Finalize the site.
         self._finalize_site()
@@ -228,8 +242,8 @@ class Stasipy(object):
             else:
                 raise ValueError('Staging directory "{0}" already exists!')
         utils.ensure_directory_exists(self.staging_path)
-        utils.ensure_directory_exists(self.posts_staging_path)
-        utils.ensure_directory_exists(self.pages_staging_path)
+        utils.ensure_directory_exists(self.staging_posts_path)
+        utils.ensure_directory_exists(self.staging_pages_path)
 
     def _read_site_config(self):
         """
@@ -259,12 +273,31 @@ class Stasipy(object):
             dict
         """
         rendered_document = {
-            'title': document.title,
+            'title': document.title.replace(' ', '-'),
             'metadata': document.metadata,
             'content': document.render(self.templates_path, **self.site_vars),
         }
 
         return rendered_document
+
+    def _build_page_links(self, pages):
+        """
+        Construct a list of page links.
+
+        Args:
+            pages (list document obj):  List of pages to link to.
+
+        Returns:
+            list
+        """
+        page_links = []
+        for page in pages:
+            page_links.append({
+                'name': page.title.replace(' ', '-'),
+                'href': '/pages/{0}.html'.format(page.name)
+            })
+
+        return page_links
 
     def _write_documents(self, rendered_documents, output_path):
         """
@@ -287,10 +320,12 @@ class Stasipy(object):
         documents = []
         for fpath in utils.list_files(path_to_search):
             fname, fext = os.path.splitext(fpath)
-            if not fext == '.md':
+            if fext not in self.document_type_mapping:
                 continue
-            doc = Document(path=os.path.join(path_to_search, fpath),
-                           type=document_type)
+            doc = self.document_type_mapping[fext](
+                path=os.path.join(path_to_search, fpath),
+                type=document_type
+            )
             documents.append(doc)
 
         return documents

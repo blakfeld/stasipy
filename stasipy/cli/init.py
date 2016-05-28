@@ -7,8 +7,6 @@ Date: 05/01/2016
 """
 from __future__ import absolute_import
 
-import os
-
 from stasipy.stasipy import Stasipy
 from stasipy.cli import StasipyCLI
 

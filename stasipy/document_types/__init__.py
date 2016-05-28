@@ -13,35 +13,59 @@ from abc import ABCMeta, abstractmethod
 import stasipy.utils as utils
 
 
-class DocumentType(object):
+class PageType(object):
+    """
+    ENUMish thing to represent the page types I'm allowing.
+    """
+
+    post = 'post'
+    page = 'page'
+
+
+class Document(object):
     """
     Base Document type class
     """
 
     __metaclass__ = ABCMeta
-    _document_type = None
 
-    def __init__(self, document_path):
+    def __init__(self, path, type, name=None):
         """
         Constructor
 
         Args:
-            document_path (str):    Path on disk to the document in for
-                                        this document.
+            path (str):     Path on disk to the document.
+            type (str):     The type of page this document is. For example
+                                'Posts', or 'Pages'.
+            name (str):     The name of the document. Defaults to basename
+                                of the path.
         """
-        self.document_path = document_path
-        self.document_name = os.path.basename(self.document_path)
-        self.metadata, self.content = utils.parse_markdown(self.document_path)
+        self.path = self._validate_path(path)
+        self.name = name or os.path.splitext(os.path.basename(self.path))[0]
+        try:
+            self.type = getattr(PageType, type.lower())
+        except AttributeError:
+            raise ValueError('{0} is not a valid type!'.format(type))
 
-    @property
-    def document_path(self):
-        return self.document_path
+    def __repr__(self):
+        return '{0}'.format(self.path)
 
-    @property
-    def document_type(self):
-        if self._document_type is None:
-            raise NotImplementedError()
-        return self._document_type
+    def __str__(self):
+        return '{0}'.format(self.path)
+
+    def _validate_path(self, path):
+        """
+        Ensure a path exists and is readable.
+
+        Args:
+            path (str):     Path to validate.
+
+        Returns:
+            str
+        """
+        if not utils.file_exists(path):
+            raise ValueError('Nothing readable exists at "{0}"!'.format(path))
+        return path
 
     @abstractmethod
     def render(self, output_file=None):

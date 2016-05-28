@@ -12,27 +12,10 @@ class StasipyDefaults:
     default_site_config = {
         'maintainer': '<put your name here>',
         'email': '<put your email here>',
+        'nav_items': [
+            {
+                'name': 'Test Page 1',
+                'href': '/sample_page/test_page1'
+            }
+        ]
     }
-
-    default_site_structure = [
-        {
-            'src': [
-                {
-                    'templates': [
-                        {'layouts': []},
-                    ],
-                },
-                {'static': []},
-                {'pages': []},
-                {'posts': []},
-            ],
-        },
-        {
-            'out': [
-                {'pages': []},
-                {'posts': []},
-                'index.html',
-            ]
-        },
-        'siteconfig.yml',
-    ]

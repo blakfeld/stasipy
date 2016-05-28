@@ -155,22 +155,63 @@ def make_singular(s):
         return s
 
 
-def parse_markdown(document):
+def parse_markdown_from_file(fpath):
     """
-    Parse a markdown document, and return a tuple of (metadata, content)
+    Parse a markdown file.
 
     Args:
-        document (str):     The path to the document you wish to parse.
+        fpath (str):        The path of the file to parse.
 
     Returns:
         Tuple:              (metadata, content)
     """
-    if not file_exists(document):
-        raise ValueError('Unable to read document at location: {0}'.format(document))
+    if not file_exists(fpath):
+        raise ValueError('Unable to read file at location: {0}'.format(fpath))
+    with open(fpath, 'r') as f:
+        metadata, content = parse_markdown(f.read())
 
-    with open(document, 'r') as f:
-        content = markdown(f.read(), extras=['metadata'])
+    return metadata, content
 
+
+def parse_markdown_template(fpath, **kwargs):
+    """
+    Parse a markdown file, but treat it like a JINJA2 template.
+
+    Args:
+        fpath (str):        The path of the file to parse.
+
+    Returns:
+        Tuple:              (metadata, content)
+    """
+    if not file_exists(fpath):
+        raise ValueError('Unable to read file at location: {0}'.format(fpath))
+    with open(fpath, 'r') as f:
+        fpath_contents = f.read()
+
+    # Get the document metadata, so it can appear in the content.
+    metadata, _ = parse_markdown(fpath_contents)
+
+    # Update our kwargs with the metadata
+    kwargs.update(metadata)
+
+    # Template, and render the templated markdown
+    templated_content = render_template_from_string(fpath_contents, **kwargs)
+    _, content = parse_markdown(templated_content)
+
+    return metadata, content
+
+
+def parse_markdown(md_content):
+    """
+    Parse a markdown string into HTML.
+
+    Args:
+        markdown (str):     Markdown content to parse.
+
+    Returns:
+        Tuple:              (metadata, content)
+    """
+    content = markdown(md_content, extras=['metadata'])
     metadata = content.metadata
 
     return metadata, content
@@ -191,6 +232,23 @@ def render_template_from_file(templates_path, template_name, **kwargs):
     """
     env = j2.Environment(loader=j2.FileSystemLoader(templates_path))
     template = env.get_template(template_name)
+    return template.render(kwargs)
+
+
+def render_template_from_string(template_string, **kwargs):
+    """
+    Render a template from a string.
+
+    Args:
+        template_string (str):      The template to use.
+        kwargs (dict):              Any other variables you wish to render
+                                        into the template.
+
+    Returns:
+        str (Rendered Template)
+    """
+    env = j2.Environment()
+    template = env.from_string(template_string)
     return template.render(kwargs)
 
 
