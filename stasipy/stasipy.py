@@ -128,24 +128,6 @@ class Stasipy(object):
         self._verbose('Generating initial "siteconfig.yml" file.')
         self._generate_base_site_config()
 
-    def _generate_base_site_config(self, **kwargs):
-        """
-        Generate an initial config file.
-
-        Args:
-            site_name (str):        The name of your site. This will be the
-                                        top level key in your config.
-            **kwargs (dict):        Whatever is supplied will be fed into
-                                        the config file.
-        """
-        config_data = StasipyDefaults.default_site_config
-        config_data['site_name'] = self.site_name
-        config_data.update(kwargs)
-        config_path = os.path.join(self.base_site_path, 'siteconfig.yml')
-        with open(config_path, 'w') as f:
-            f.write('---\n')
-            f.write(yaml.dump(config_data, default_flow_style=False))
-
     def generate(self):
         """
         Generate a new site from source.
@@ -174,7 +156,6 @@ class Stasipy(object):
         # Set pages/posts variable in site_vars.
         self.site_vars['pages'] = sorted(meta_pages) + sorted(pages)
         self.site_vars['posts'] = sorted(posts, key=lambda p: p.date, reverse=True)
-
         self.site_vars['navbar'] = self._generate_navbar(pages, meta_pages)
 
         # Generate the "out" staging directory.
@@ -185,13 +166,9 @@ class Stasipy(object):
             return 1
 
         # Write the rendered posts/pages/meta pages.
-        self._verbose('Writing out posts.')
+        self._verbose('Writing out documents.')
         self._write_documents(self._render_documents(posts), self.staging_posts_path)
-
-        self._verbose('Writing out pages.')
         self._write_documents(self._render_documents(pages), self.staging_pages_path)
-
-        self._verbose('Writing out meta pages.')
         self._write_documents(self._render_documents(meta_pages), self.staging_meta_path)
 
         # Copy over static files.
@@ -200,6 +177,24 @@ class Stasipy(object):
 
         # Finalize the site.
         self._finalize_site()
+
+    def _generate_base_site_config(self, **kwargs):
+        """
+        Generate an initial config file.
+
+        Args:
+            site_name (str):        The name of your site. This will be the
+                                        top level key in your config.
+            **kwargs (dict):        Whatever is supplied will be fed into
+                                        the config file.
+        """
+        config_data = StasipyDefaults.default_site_config
+        config_data['site_name'] = self.site_name
+        config_data.update(kwargs)
+        config_path = os.path.join(self.base_site_path, 'siteconfig.yml')
+        with open(config_path, 'w') as f:
+            f.write('---\n')
+            f.write(yaml.dump(config_data, default_flow_style=False))
 
     def _finalize_site(self):
         """
@@ -328,12 +323,6 @@ class Stasipy(object):
         # Concat the two lists together, letting user defined
         #   items come first.
         return config_nav_items + navbar
-
-    def serve(self):
-        """
-        Serve the site.
-        """
-        pass
 
     def _verbose(self, msg):
         """
