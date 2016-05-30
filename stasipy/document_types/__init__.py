@@ -79,7 +79,6 @@ class Document(object):
             datetime obj
         """
         if raw_date is not None:
-            print raw_date
             return datetime.strptime(raw_date, self.time_format)
         else:
             # Get file create date (Probably not what the user wants, but its something.)
