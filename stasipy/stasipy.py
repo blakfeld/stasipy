@@ -48,11 +48,7 @@ class Stasipy(object):
             skip_confirm (bool):        Skip any confirmation dialogs.
         """
 
-        base_site_path = os.path.expanduser(base_site_path)
-        if site_name is not None:
-            self.base_site_path = os.path.join(base_site_path, site_name)
-        else:
-            self.base_site_path = base_site_path
+        self.base_site_path = os.path.expanduser(base_site_path)
 
         # Source Paths.
         self.source_path = os.path.join(self.base_site_path, 'src')
