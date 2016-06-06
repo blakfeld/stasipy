@@ -287,7 +287,8 @@ class Stasipy(object):
             doc = self.document_type_mapping[fext](
                 path=os.path.join(path_to_search, fpath),
                 type=document_type,
-                time_format=self.site_vars.get('time_format')
+                time_format=self.site_vars.get('time_format'),
+                sample_length=self.site_vars.get('sample_length')
             )
             documents.append(doc)
 

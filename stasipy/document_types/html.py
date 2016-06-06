@@ -20,7 +20,7 @@ class HTMLDocument(Document):
         without having to write my own parser.
     """
 
-    def __init__(self, path, type, name=None, time_format=None):
+    def __init__(self, path, type, name=None, time_format=None, sample_length=40):
         """
         Constructor
 
@@ -36,7 +36,8 @@ class HTMLDocument(Document):
         super(self.__class__, self).__init__(path=path,
                                              type=type,
                                              name=name,
-                                             time_format=time_format)
+                                             time_format=time_format,
+                                             sample_length=sample_length)
 
     def render(self, templates_path, **kwargs):
         """
@@ -55,8 +56,7 @@ class HTMLDocument(Document):
             raw_content = f.read()
 
         # Munch the site_vars a bit to accomodate doc_types.
-        site_vars['{0}_body'.format(self.type)] = raw_content
-        site_vars['{0}_title'.format(self.type)] = self.title
+        self._munge_site_vars(site_vars, raw_content)
 
         # Render the page.
         return utils.render_template_from_file(

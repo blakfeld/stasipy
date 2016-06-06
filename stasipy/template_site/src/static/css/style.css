@@ -1,4 +1,68 @@
 body {
-    padding-top: 50px;
-    padding-bottom: 30px;
+    font-family: Geogria, "Times New roman", Times, serif;
+    color: #555;
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+h1, .h1,
+h2, .h2,
+h3, .h3,
+h4, .h4,
+h5, .h5,
+h6, .h6 {
+  margin-top: 0;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: normal;
+  color: #333;
+}
+
+.header {
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.header h3 {
+    margin-top: 0;
+    margin-bottom: 0;
+    line-height: 40px;
+}
+
+.header a {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.blog-post-title {
+    margin-bottom: 4px;
+    font-size: 40px;
+}
+.blog-post-meta {
+    margin-bottom: 20px;
+    color: #999;
+}
+
+.blog-post {
+    margin-bottom: 60px;
+}
+
+@media(min-width: 768px) {
+    .container {
+        max-width: 730px;
+    }
+}
+
+@media screen and (min-width: 768px) {
+  /* Remove the padding we set earlier */
+  .header,
+  .marketing,
+  .footer {
+    padding-right: 0;
+    padding-left: 0;
+  }
+  /* Space out the masthead */
+  .header {
+    margin-bottom: 10px;
+  }
 }

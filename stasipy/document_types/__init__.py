@@ -12,6 +12,7 @@ from datetime import datetime
 from abc import ABCMeta, abstractmethod
 
 import stasipy.utils as utils
+from stasipy.defaults import StasipyDefaults as defaults
 
 
 class PageType(object):
@@ -31,16 +32,18 @@ class Document(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, path, type, name=None, time_format=None):
+    def __init__(self, path, type, name=None, time_format=None, sample_length=None):
         """
         Constructor
 
         Args:
-            path (str):         Path on disk to the document.
-            type (str):         The type of page this document is. For example
-                                    'Posts', or 'Pages'.
-            name (str):         The name of the document. Defaults to basename
-            time_format (str):  Format string for the time.
+            path (str):             Path on disk to the document.
+            type (str):             The type of page this document is. For
+                                        example 'Posts', or 'Pages'.
+            name (str):             The name of the document. Defaults
+                                        to basename
+            time_format (str):      Format string for the time.
+            sample_length (str):    Word limit for sample content.
         """
         self.path = self._validate_path(path)
         self.time_format = time_format or '%m/%d/%Y'
@@ -58,6 +61,7 @@ class Document(object):
         self.href = self.metadata.pop('href', self._generate_href())
         self.date = self._process_date(raw_date=self.metadata.pop('date', None))
         self.date_str = self._create_date_string()
+        self.sample_length = sample_length if sample_length is not None else defaults.sample_length
 
     def __repr__(self):
         return '{0}'.format(self.path)
@@ -118,8 +122,43 @@ class Document(object):
             raise ValueError('Nothing readable exists at "{0}"!'.format(path))
         return path
 
+    def _munge_site_vars(self, site_vars, content, **kwargs):
+        """
+        This munges site vars to accomadate our various doc types. I'm
+            also doing any munging that each doc type requires.
+
+        Args:
+            site_vars (dict):       The dict to munge.
+            content (str):          Rendered page content.
+
+        Returns:
+            dict
+        """
+
+        site_vars['{0}_body'.format(self.type)] = content
+        site_vars['{0}_summary'.format(self.type)] = self._generate_sample_content(
+            content,
+            sample_length=self.sample_length
+        )
+        site_vars['{0}_title'.format(self.type)] = self.title
+        site_vars['active_page'] = 'blog' if self.type == 'post' else self.title
+        if kwargs:
+            site_vars.update(kwargs)
+
+        return site_vars
+
+    def _generate_sample_content(self, content, sample_length=50):
+        """
+        Generate a sample "Post".
+
+        Args:
+            content (str):      The content to create a sample of.
+        """
+
+        return ' '.join(content.split()[:sample_length])
+
     @abstractmethod
-    def render(self, output_file=None):
+    def render(self, templates_path, **kwargs):
         """
         Render out a document
         """
