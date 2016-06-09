@@ -126,7 +126,7 @@ Some fields are important and expected to be there. It won't crash if they're no
 ## To Do
 
 - [ ] Pagination.
-- [ ] Generate post summaries.
-- [ ] In general the way post content is templated/rendered needs some tweaking.
+- [X] Generate post summaries.
+- [X] In general the way post content is templated/rendered needs some tweaking.
 - [ ] Add github styled code highlighting.
-- [ ] Convert all metadata keys to lowercase.
+- [X] Convert all metadata keys to lowercase.

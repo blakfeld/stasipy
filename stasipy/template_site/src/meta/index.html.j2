@@ -6,7 +6,7 @@ title: Home
     <div class="blog-post">
     <a href="{{ post.href }}"><h2 class="blog-post-title">{{ post.title }}</h2></a>
     <p class="blog-post-meta">{{ post.date_str }}{% if 'author' in  post.metadata %} by {{ post.metadata.author }}{% endif %}</p>
-    {{ post.raw_content }}
+    {{ post.summary }} <a href="{{ post.href }}" class="pull-right">More</a>
     </div>
 {% endfor %}
 </div>

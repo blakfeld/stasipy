@@ -3,9 +3,6 @@ title: About
 author: Corwin Brown
 date: 05/15/2016
 ---
-
-# About
-
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam elit augue, ornare et consectetur a, viverra at diam. Maecenas venenatis nunc vel nibh faucibus imperdiet. Mauris vel scelerisque massa. Ut a laoreet nulla. Maecenas euismod magna ex, quis posuere magna fringilla vel. Cras gravida mattis lorem eu pharetra. Maecenas finibus, mi et suscipit convallis, ex quam elementum risus, eget ultrices tortor orci a augue. Maecenas dictum ultricies sem, quis ullamcorper magna mollis eget. Donec ultrices eros sit amet tincidunt lobortis. Etiam hendrerit diam odio, id mattis nisl auctor non. Maecenas mattis a dui eget sollicitudin. In aliquam neque lacus, sed imperdiet lacus lobortis a. Cras et commodo lectus. Nunc eget quam nec mauris ullamcorper condimentum non a mauris. Integer varius lobortis lacus, a pulvinar mi. Etiam cursus lectus et tempus lobortis.
 
 ##  Ut a laoreet nulla.

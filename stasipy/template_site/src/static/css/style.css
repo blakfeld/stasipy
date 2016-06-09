@@ -34,6 +34,12 @@ h6, .h6 {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
+.footer {
+  padding-top: 19px;
+  color: #777;
+  border-top: 1px solid #e5e5e5;
+}
+
 .blog-post-title {
     margin-bottom: 4px;
     font-size: 40px;

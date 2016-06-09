@@ -35,6 +35,14 @@ class StasipyInit(StasipyCLI):
                                  type=str,
                                  metavar='SITE-NAME',
                                  help='The name of the site to generate.')
+        self.parser.add_argument('--maintainer',
+                                 type=str,
+                                 metavar='MAINTAINER_NAME',
+                                 help='The name of the person maintaining the site.')
+        self.parser.add_argument('--maintainer-email',
+                                 type=str,
+                                 metavar='MAINTAINER_EMAIL',
+                                 help='The email of the person maintaining the site.')
 
         super(self.__class__, self).parse()
 
@@ -42,13 +50,24 @@ class StasipyInit(StasipyCLI):
         """
         Execute.
         """
+        if self.parsed_args.maintainer is None:
+            maintainer = raw_input('What is the name of the site maintainer: ')
+        else:
+            maintainer = self.parsed_args.maintainer
+
+        if self.parsed_args.maintainer_email is None:
+            maintainer_email = raw_input('What is the e-mail address of the site maintainer: ')
+        else:
+            maintainer_email = self.parsed_args.maintainer_email
+
         stasipy = Stasipy(
             base_site_path=self.parsed_args.site_path,
             site_name=self.parsed_args.site_name,
             verbose_mode=self.parsed_args.verbose,
             skip_confirm=self.parsed_args.skip_confirm,
         )
-        stasipy.init()
+        stasipy.init(maintainer=maintainer,
+                     maintainer_email=maintainer_email)
 
     @property
     def description(self):

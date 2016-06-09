@@ -6,6 +6,7 @@ stasipy:
 Author: Corwin Brown
 Date: 5/1/2015
 """
+from __future__ import absolute_import
 
 import sys
 try:
@@ -18,4 +19,3 @@ except ImportError:
 
 if __name__ == '__main__':
     sys.exit(main())
-

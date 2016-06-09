@@ -1,6 +1,6 @@
 {% extends "layouts/base.html.j2" %}
 
 {% block content %}
-  <h1 class="page-header">{{ post_title }}</h1>
-  {{ post_body }}
+  <h2 class="blog-post-title">{{ document.title }}</h1>
+  {{ document.content}}
 {% endblock %}

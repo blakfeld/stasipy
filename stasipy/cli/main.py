@@ -18,6 +18,35 @@ VALID_SUBCOMMANDS = [
 ]
 
 
+def valid_subcommand(subcommand, valid_subcommands):
+    """
+    Ensure we've specifed a valid subcommand.
+    """
+    if subcommand in valid_subcommands:
+        return True
+    else:
+        return False
+
+
+def list_valid_subcommands(valid_subcommands):
+    """
+    Create a human friendly list of the valid sub commands.
+
+    Args:
+        valid_subcommands (list):   A list of the valid commands.
+    """
+
+    # Return a string that outputs like:
+    #
+    #   * command1
+    #   * command2
+    #   * etc
+
+    output = 'VALID SUBCOMMANDS:\n  * {0}'.format('\n  * '.join(valid_subcommands))
+
+    return output
+
+
 def main():
     """
     Parse out the the subcommand, then run that module.
@@ -57,32 +86,3 @@ def main():
         # TODO: Catch the actual exception, not just everything.
         print('Exception: {0}'.format(e))
         return 1
-
-
-def valid_subcommand(subcommand, valid_subcommands):
-    """
-    Ensure we've specifed a valid subcommand.
-    """
-    if subcommand in valid_subcommands:
-        return True
-    else:
-        return False
-
-
-def list_valid_subcommands(valid_subcommands):
-    """
-    Create a human friendly list of the valid sub commands.
-
-    Args:
-        valid_subcommands (list):   A list of the valid commands.
-    """
-
-    # Return a string that outputs like:
-    #
-    #   * command1
-    #   * command2
-    #   * etc
-
-    output = 'VALID SUBCOMMANDS:\n  * {0}'.format('\n  * '.join(valid_subcommands))
-
-    return output

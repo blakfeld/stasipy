@@ -32,7 +32,7 @@ class Document(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, path, type, name=None, time_format=None, sample_length=None):
+    def __init__(self, path, type, name=None, site_config=None):
         """
         Constructor
 
@@ -43,31 +43,36 @@ class Document(object):
             name (str):             The name of the document. Defaults
                                         to basename
             time_format (str):      Format string for the time.
-            sample_length (str):    Word limit for sample content.
+            summary_length (str):    Word limit for sample content.
         """
         self.path = self._validate_path(path)
-        self.time_format = time_format or '%m/%d/%Y'
+        self.site_config = site_config or {}
+        self.time_format = self.site_config.get('time_format', '%m/%d/%Y')
         try:
             self.type = getattr(PageType, type.lower())
         except AttributeError:
             raise ValueError('{0} is not a valid type!'.format(type))
 
-        self.metadata, self.raw_content = utils.parse_markdown_from_file(self.path)
+        self.metadata, _ = utils.parse_markdown_from_file(self.path)
 
+        # The Great Metadata-palooza!
         self.name = name or self.metadata.pop('name', os.path.basename(self.path).split('.')[0])
         self.title = self.metadata.pop('title', self.name)
+        self.author = self.metadata.pop('author', site_config.get('maintainer', None))
+        self.author_email = self.metadata.pop('author_email', site_config.get('maintainer_email', None))
         self.template_name = self.metadata.pop('template', '{0}.html.j2'.format(self.type))
         self.navbar = utils.str_to_bool(self.metadata.pop('navbar', 'True'))
         self.href = self.metadata.pop('href', self._generate_href())
         self.date = self._process_date(raw_date=self.metadata.pop('date', None))
         self.date_str = self._create_date_string()
-        self.sample_length = sample_length if sample_length is not None else defaults.sample_length
+        self.summary_length = self.site_config.get('summary_length', defaults.summary_length)
 
-    def __repr__(self):
-        return '{0}'.format(self.path)
+        if self.type == PageType.post:
+            self.summary = self._generate_summary()
+        else:
+            self.summary = None
 
-    def __str__(self):
-        return '{0}'.format(self.path)
+        self.content = self._render_base()
 
     def _process_date(self, raw_date=None):
         """
@@ -122,40 +127,54 @@ class Document(object):
             raise ValueError('Nothing readable exists at "{0}"!'.format(path))
         return path
 
-    def _munge_site_vars(self, site_vars, content, **kwargs):
+    def _build_template_vars(self, **kwargs):
         """
-        This munges site vars to accomadate our various doc types. I'm
-            also doing any munging that each doc type requires.
+        Construct a dict to get passed down to our template containing
+            various variables (That'd be a good band name).
 
         Args:
-            site_vars (dict):       The dict to munge.
-            content (str):          Rendered page content.
+            kwargs (dict):  Whatever you'd like passed into the dict.
 
         Returns:
             dict
         """
+        template_vars = {
+            'document': self.__dict__,
+            'active_page': 'blog' if self.type == 'post' else self.title,
+        }
+        template_vars.update(self.metadata)
+        template_vars.update(self.site_config)
+        template_vars.update(kwargs)
 
-        site_vars['{0}_body'.format(self.type)] = content
-        site_vars['{0}_summary'.format(self.type)] = self._generate_sample_content(
-            content,
-            sample_length=self.sample_length
-        )
-        site_vars['{0}_title'.format(self.type)] = self.title
-        site_vars['active_page'] = 'blog' if self.type == 'post' else self.title
-        if kwargs:
-            site_vars.update(kwargs)
+        return template_vars
 
-        return site_vars
-
-    def _generate_sample_content(self, content, sample_length=50):
+    def _generate_summary(self, summary_length=50):
         """
-        Generate a sample "Post".
+        Generate a post summary.
 
-        Args:
-            content (str):      The content to create a sample of.
+        Not an ideal solution as it will eat new lines.
         """
+        with open(self.path, 'r') as f:
+            content = utils.remove_markdown_metadata(f.read())
 
-        return ' '.join(content.split()[:sample_length])
+        template_vars = self._build_template_vars()
+        summary_content = '{0}...'.format(' '.join(content.split()[:summary_length]))
+        summary_content = utils.render_template_from_string(summary_content, **template_vars)
+        _, summary_content = utils.parse_markdown(summary_content)
+
+        return summary_content
+
+    def _render_base(self):
+        """
+        Render out the base "raw" content.
+
+        Returns:
+            str
+        """
+        template_vars = self._build_template_vars()
+        _, raw_content = utils.parse_markdown_template(self.path, **template_vars)
+
+        return raw_content
 
     @abstractmethod
     def render(self, templates_path, **kwargs):

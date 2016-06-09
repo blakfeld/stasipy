@@ -101,7 +101,7 @@ class Stasipy(object):
                 return part
         return None
 
-    def init(self):
+    def init(self, maintainer=None, maintainer_email=None):
         """
         Intialize a Base Site.
         """
@@ -122,15 +122,13 @@ class Stasipy(object):
         shutil.copytree(template_site_path, self.base_site_path)
 
         self._verbose('Generating initial "siteconfig.yml" file.')
-        self._generate_base_site_config()
+        self._generate_base_site_config(maintainer=maintainer,
+                                        maintainer_email=maintainer_email)
 
     def generate(self):
         """
         Generate a new site from source.
         """
-        # Get data from site_config
-        self.site_vars = self._read_site_config()
-
         # Ensure the source path exists.
         if not utils.file_exists(self.source_path):
             raise StasipyException('Source path does not exists at: "{0}"'.format(self.source_path))
@@ -141,18 +139,21 @@ class Stasipy(object):
         pages = self._discover_documents(self.source_pages_path, 'page')
         meta_pages = self._discover_documents(self.source_meta_path, 'meta')
         if posts or pages or meta_pages:
-            self._verbose('Discovered documents!\nPosts:\n\t- {0}\nPages: \n\t- {1}\nMeta Pages: \n\t- {2}'.format(
-                          '\n\t- '.join([str(p) for p in posts] if posts else ''),
-                          '\n\t- '.join([str(p) for p in pages] if pages else ''),
-                          '\n\t- '.join([str(p) for p in meta_pages]) if meta_pages else ''))
+            self._verbose(
+                'Discovered documents!\nPosts:\n  - {0}\nPages: \n  - {1}\nMeta Pages: \n  - {2}'.format(
+                    '\n  - '.join([str(p) for p in posts] if posts else ''),
+                    '\n  - '.join([str(p) for p in pages] if pages else ''),
+                    '\n  - '.join([str(p) for p in meta_pages]) if meta_pages else '')
+            )
         else:
             utils.print_err('No documents found!')
             return 1
 
-        # Set pages/posts variable in site_vars.
-        self.site_vars['pages'] = sorted(meta_pages) + sorted(pages)
-        self.site_vars['posts'] = sorted(posts, key=lambda p: p.date, reverse=True)
+        # Set pages variable in site_vars.
         self.site_vars['navbar'] = self._generate_navbar(pages, meta_pages)
+
+        # Keep this separate, because only meta pages need this info.
+        posts_list = self._get_posts_list(posts)
 
         # Generate the "out" staging directory.
         try:
@@ -163,9 +164,24 @@ class Stasipy(object):
 
         # Write the rendered posts/pages/meta pages.
         self._verbose('Writing out documents.')
-        self._write_documents(self._render_documents(posts), self.staging_posts_path)
-        self._write_documents(self._render_documents(pages), self.staging_pages_path)
-        self._write_documents(self._render_documents(meta_pages), self.staging_meta_path)
+
+        # Write out posts.
+        self._write_documents(
+            self._render_documents(posts),
+            self.staging_posts_path
+        )
+
+        # Write out pages.
+        self._write_documents(
+            self._render_documents(pages),
+            self.staging_pages_path
+        )
+
+        # Write out meta pages.
+        self._write_documents(
+            self._render_documents(meta_pages, posts=posts_list),
+            self.staging_meta_path
+        )
 
         # Copy over static files.
         if utils.file_exists(self.source_static_path):
@@ -245,9 +261,10 @@ class Stasipy(object):
             with open(site_config_path, 'r') as f:
                 site_config_data = yaml.load(f.read())
 
+        print site_config_data
         return site_config_data
 
-    def _render_documents(self, documents):
+    def _render_documents(self, documents, **kwargs):
         """
         Render the documents, and return them in a meaningful datastructure.
 
@@ -257,9 +274,12 @@ class Stasipy(object):
         Returns:
             dict
         """
+        render_vars = {}
+        render_vars.update(kwargs)
+        render_vars.update(self.site_vars)
         if not isinstance(documents, list):
             documents = [documents]
-        return {d.name: d.render(self.templates_path, **self.site_vars) for d in documents}
+        return {d.name: d.render(self.templates_path, **render_vars) for d in documents}
 
     def _write_documents(self, rendered_documents, output_path):
         """
@@ -287,8 +307,7 @@ class Stasipy(object):
             doc = self.document_type_mapping[fext](
                 path=os.path.join(path_to_search, fpath),
                 type=document_type,
-                time_format=self.site_vars.get('time_format'),
-                sample_length=self.site_vars.get('sample_length')
+                site_config=self.site_vars
             )
             documents.append(doc)
 
@@ -311,15 +330,36 @@ class Stasipy(object):
         #   add any poge twice. Meaning, if the user has manually added
         #   an About page, I shouldn't try to add the About page again.
         config_nav_titles = [i['title'] for i in config_nav_items]
+        docs = []
         for doc_list in args:
-            for doc in doc_list:
-                if not doc.navbar or doc.title in config_nav_titles:
-                    continue
-                navbar.append(doc)
+            docs += doc_list
+
+        for doc in sorted(docs):
+            if not doc.navbar or doc.title in config_nav_titles:
+                continue
+            navbar.append(
+                {
+                    'title': doc.title,
+                    'href': doc.href,
+                }
+            )
 
         # Concat the two lists together, letting user defined
         #   items come first.
         return config_nav_items + navbar
+
+    def _get_posts_list(self, posts):
+        """
+        Get a list of posts for use on the index page.
+
+        Args:
+            posts (list):   List of Document objects to parse and sort.
+
+        Returns:
+            list
+        """
+        posts = [p.__dict__ for p in posts]
+        return sorted(posts, key=lambda p: p['date'])
 
     def _verbose(self, msg):
         """

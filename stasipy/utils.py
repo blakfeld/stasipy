@@ -8,6 +8,7 @@ Date: 05/01/2016
 from __future__ import absolute_import, print_function
 
 import os
+import re
 import sys
 import shutil
 
@@ -202,7 +203,7 @@ def parse_markdown_template(fpath, **kwargs):
     return metadata, content
 
 
-def parse_markdown(md_content):
+def parse_markdown(md_content, metadata_lowercase=True):
     """
     Parse a markdown string into HTML.
 
@@ -214,6 +215,9 @@ def parse_markdown(md_content):
     """
     content = markdown(md_content, extras=['metadata'])
     metadata = content.metadata
+
+    if metadata_lowercase:
+        metadata = {k.lower(): v for k, v in metadata.items()}
 
     return metadata, content
 
@@ -253,6 +257,24 @@ def render_template_from_string(template_string, **kwargs):
     return template.render(kwargs)
 
 
+def remove_markdown_metadata(md_content):
+    """
+    When generating things like a summary, it's useful to strip out
+        the metadata portion of a document.
+
+    Args:
+        md_content (str):   The content you wish to remove the
+                                metadata header from
+
+    Returns:
+        str
+    """
+    metadata_re = re.compile(r'^---\n(.*\n)+?---$', re.MULTILINE)
+    md_content = re.sub(metadata_re, '', md_content).strip()
+
+    return md_content
+
+
 def str_to_bool(s):
     """
     Convert a string to a boolean.
@@ -264,6 +286,7 @@ def str_to_bool(s):
         return True
     else:
         return False
+
 
 def print_err(*args, **kwargs):
     """
